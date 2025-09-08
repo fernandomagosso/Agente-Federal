@@ -1,0 +1,7 @@
+{
+  "name": "Federal Agent Simulation",
+  "description": "An AI-powered simulation for practicing airport security interviews.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}

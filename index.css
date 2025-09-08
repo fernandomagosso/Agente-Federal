@@ -1,0 +1,324 @@
+:root {
+  --background-dark: #121212;
+  --surface-dark: #1E1E1E;
+  --surface-medium: #2C2C2C;
+  --primary-accent: #4A90E2;
+  --primary-accent-hover: #5aa1f2;
+  --text-light: #E0E0E0;
+  --text-white: #FFFFFF;
+  --font-family: 'Roboto', sans-serif;
+  --chat-bubble-user: #26486B;
+  --chat-bubble-ai: #3A3A3A;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  height: 100%;
+  font-family: var(--font-family);
+  background-color: var(--background-dark);
+  color: var(--text-light);
+}
+
+#root {
+  display: flex;
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+}
+
+.app-container {
+  display: flex;
+  width: 100%;
+  height: 100%;
+}
+
+.control-panel {
+  width: 35%;
+  max-width: 400px;
+  background-color: var(--surface-dark);
+  padding: 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  overflow-y: auto;
+  border-right: 1px solid var(--surface-medium);
+}
+
+.control-panel h1 {
+  color: var(--text-white);
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.control-panel p {
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.control-section h2 {
+  color: var(--text-white);
+  font-size: 1rem;
+  margin-bottom: 1rem;
+  border-bottom: 1px solid var(--surface-medium);
+  padding-bottom: 0.5rem;
+}
+
+.segmented-control {
+  display: flex;
+  border: 1px solid var(--surface-medium);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.btn-segment {
+  flex: 1;
+  padding: 0.5rem 0;
+  background-color: transparent;
+  border: none;
+  color: var(--text-light);
+  cursor: pointer;
+  transition: background-color 0.2s ease, color 0.2s ease;
+  font-size: 0.9rem;
+}
+
+.btn-segment:not(:last-child) {
+  border-right: 1px solid var(--surface-medium);
+}
+
+.btn-segment.active {
+  background-color: var(--primary-accent);
+  color: var(--text-white);
+  font-weight: 700;
+}
+
+.btn-segment:hover:not(.active) {
+    background-color: var(--surface-medium);
+}
+
+.btn-segment:disabled {
+    color: #777;
+    cursor: not-allowed;
+    background-color: transparent !important;
+}
+
+.btn-segment.active:disabled {
+    background-color: var(--primary-accent) !important;
+    opacity: 0.6;
+}
+
+.theme-buttons {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.btn {
+  background-color: var(--primary-accent);
+  color: var(--text-white);
+  border: none;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 500;
+  text-align: center;
+  transition: background-color 0.2s ease;
+}
+
+.btn:hover {
+  background-color: var(--primary-accent-hover);
+}
+
+.btn:disabled {
+  background-color: #555;
+  cursor: not-allowed;
+}
+
+.custom-prompt textarea {
+  width: 100%;
+  height: 80px;
+  background-color: var(--surface-medium);
+  border: 1px solid #444;
+  border-radius: 8px;
+  padding: 0.75rem;
+  color: var(--text-light);
+  font-family: var(--font-family);
+  resize: vertical;
+}
+
+.custom-prompt textarea:focus {
+  outline: none;
+  border-color: var(--primary-accent);
+}
+
+.custom-prompt textarea:disabled {
+  background-color: #222;
+  cursor: not-allowed;
+}
+
+.chat-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--background-dark);
+}
+
+.chat-history {
+  flex: 1;
+  padding: 1rem;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.chat-message {
+  display: flex;
+  flex-direction: column;
+  max-width: 75%;
+  padding: 0.75rem 1rem;
+  border-radius: 12px;
+  line-height: 1.5;
+}
+
+.chat-message.user {
+  background-color: var(--chat-bubble-user);
+  align-self: flex-end;
+  border-bottom-right-radius: 2px;
+}
+
+.chat-message.model {
+  background-color: var(--chat-bubble-ai);
+  align-self: flex-start;
+  border-bottom-left-radius: 2px;
+}
+
+.message-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+}
+
+.chat-message .role {
+  font-weight: 700;
+  font-size: 0.8rem;
+  opacity: 0.8;
+}
+
+.speak-btn {
+    background-color: transparent;
+    width: 28px;
+    height: 28px;
+    padding: 4px;
+}
+
+.speak-btn svg {
+    fill: var(--text-light);
+    opacity: 0.7;
+}
+
+.speak-btn:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+.speak-btn:hover svg {
+    opacity: 1;
+}
+
+.chat-input-area {
+  padding: 1rem;
+  border-top: 1px solid var(--surface-medium);
+  background-color: var(--surface-dark);
+  display: flex;
+  gap: 1rem;
+}
+
+.chat-input-area form {
+  display: flex;
+  flex: 1;
+  gap: 1rem;
+}
+
+.chat-input-area input {
+  flex: 1;
+  background-color: var(--surface-medium);
+  border: 1px solid #444;
+  border-radius: 20px;
+  padding: 0.75rem 1.25rem;
+  color: var(--text-light);
+  font-size: 1rem;
+}
+
+.chat-input-area input:focus {
+  outline: none;
+  border-color: var(--primary-accent);
+}
+
+.icon-btn {
+  background-color: var(--primary-accent);
+  border: none;
+  border-radius: 50%;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  flex-shrink: 0;
+}
+.icon-btn svg {
+  fill: var(--text-white);
+  width: 24px;
+  height: 24px;
+}
+
+.icon-btn:hover {
+  background-color: var(--primary-accent-hover);
+}
+
+.icon-btn.recording {
+    background-color: #D32F2F;
+}
+
+.actions-bar {
+    display: flex;
+    gap: 1rem;
+    margin-top: auto;
+    padding-top: 1rem;
+    border-top: 1px solid var(--surface-medium);
+}
+
+.btn-secondary {
+    background-color: var(--surface-medium);
+    color: var(--text-light);
+}
+
+.btn-secondary:hover {
+    background-color: #444;
+}
+
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .app-container {
+    flex-direction: column;
+  }
+  .control-panel {
+    width: 100%;
+    max-width: none;
+    height: auto;
+    border-right: none;
+    border-bottom: 1px solid var(--surface-medium);
+  }
+  .chat-panel {
+    height: 100%;
+  }
+}

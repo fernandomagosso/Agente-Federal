@@ -3,6 +3,10 @@ import React, { useState, useEffect, useRef } from 'react';
 import ReactDOM from 'react-dom/client';
 import { GoogleGenAI } from '@google/genai';
 
+// --- API Key ---
+// WARNING: This key is now hardcoded. Do not share this file publicly.
+const API_KEY = 'AIzaSyDK2CkNxQjrHHu5_ZjXNGbsv9qzKJXXnzg';
+
 // --- Speech Recognition Polyfill ---
 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 
@@ -35,11 +39,6 @@ const i18n = {
     changeSettingConfirm: 'Mudar esta configuração irá reiniciar a simulação atual. Deseja continuar?',
     micPermissionError: 'Permissão para microfone negada. Por favor, habilite nas configurações do seu navegador.',
     voiceNotSupported: 'Reconhecimento de voz não é suportado neste navegador.',
-    apiKeyPrompt: 'Para começar, insira sua chave da API do Gemini.',
-    apiKeyPlaceholder: 'Insira sua chave da API aqui...',
-    setApiKey: 'Definir Chave',
-    verifyingApiKey: 'Verificando...',
-    invalidApiKey: 'Chave de API inválida ou incorreta. Por favor, verifique e tente novamente.',
   },
   'en-US': {
     title: 'Approach Simulation',
@@ -68,15 +67,10 @@ const i18n = {
     changeSettingConfirm: 'Changing this setting will restart the current simulation. Do you want to continue?',
     micPermissionError: 'Microphone permission denied. Please enable it in your browser settings.',
     voiceNotSupported: 'Voice recognition is not supported in this browser.',
-    apiKeyPrompt: 'To begin, please enter your Gemini API Key.',
-    apiKeyPlaceholder: 'Enter your API Key here...',
-    setApiKey: 'Set Key',
-    verifyingApiKey: 'Verifying...',
-    invalidApiKey: 'Invalid or incorrect API key. Please check it and try again.',
   }
 };
 
-const getSystemInstruction = (difficulty, lang) => {
+function getSystemInstruction(difficulty, lang) {
   const instructions = {
       'Fácil': {
           'pt-BR': `Você é o Agente Federal Ernest. Seu tom é profissional, mas calmo e educado. Seu objetivo é fazer uma checagem de rotina. Faça perguntas claras e diretas, uma de cada vez. Você está investigando uma mãe viajando sozinha com a filha de 10 anos para a Europa. Comece a conversa com base no tópico inicial fornecido. Analise a resposta da mãe e faça uma pergunta de acompanhamento relevante. Responda APENAS em Português.`,
@@ -92,16 +86,14 @@ const getSystemInstruction = (difficulty, lang) => {
       }
   };
   return instructions[difficulty][lang];
-};
+}
 
 const difficultyMap = { 'Fácil': 'Easy', 'Médio': 'Medium', 'Difícil': 'Hard' };
 const topicKeys = ['reasonForTravel', 'fathersAuth', 'accommodation', 'financialResources', 'tiesToBrazil'];
 
 // --- App Component ---
-const App = () => {
+function App() {
     const [ai, setAi] = useState(null);
-    const [apiKeyInput, setApiKeyInput] = useState('');
-    const [isVerifyingKey, setIsVerifyingKey] = useState(false);
     const [chatHistory, setChatHistory] = useState([]);
     const [userInput, setUserInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
@@ -116,13 +108,25 @@ const App = () => {
     const recognitionRef = useRef(null);
     const texts = i18n[language];
 
-    useEffect(() => {
+    useEffect(function() {
+        // Automatically initialize the AI client with the hardcoded key
+        if (API_KEY) {
+            try {
+                const aiInstance = new GoogleGenAI({ apiKey: API_KEY });
+                setAi(aiInstance);
+            } catch (error) {
+                console.error("Failed to initialize GoogleGenAI:", error);
+            }
+        }
+    }, []);
+
+    useEffect(function() {
         if (chatHistoryRef.current) {
             chatHistoryRef.current.scrollTop = chatHistoryRef.current.scrollHeight;
         }
     }, [chatHistory]);
 
-    const speak = (text, lang) => {
+    const speak = function(text, lang) {
         if ('speechSynthesis' in window) {
             window.speechSynthesis.cancel();
             const utterance = new SpeechSynthesisUtterance(text);
@@ -131,25 +135,7 @@ const App = () => {
         }
     };
 
-    const handleSetApiKey = async () => {
-        const key = apiKeyInput.trim();
-        if (!key) return;
-        setIsVerifyingKey(true);
-        try {
-            const newAiInstance = new GoogleGenAI({ apiKey: key });
-            const validationChat = newAiInstance.chats.create({ model: 'gemini-2.5-flash' });
-            await validationChat.sendMessage({ message: "hello" });
-            setAi(newAiInstance);
-        } catch (error) {
-            console.error("API Key validation failed:", error);
-            alert(texts.invalidApiKey);
-            setAi(null);
-        } finally {
-            setIsVerifyingKey(false);
-        }
-    };
-
-    const handleStartSimulation = async () => {
+    const handleStartSimulation = async function() {
         const topic = customTopic.trim() || (selectedTopicKey ? texts[selectedTopicKey] : '');
         if (!topic || !ai) return;
 
@@ -180,30 +166,30 @@ const App = () => {
         }
     };
 
-    const handleSendMessage = async (e) => {
+    const handleSendMessage = async function(e) {
         e.preventDefault();
         if (!userInput.trim() || isLoading || !chatRef.current) return;
 
         const userMessage = { role: 'user', text: userInput };
-        setChatHistory(prev => [...prev, userMessage]);
+        setChatHistory(function(prev) { return [...prev, userMessage]; });
         setUserInput('');
         setIsLoading(true);
 
         try {
             const response = await chatRef.current.sendMessage({ message: userInput });
             const agentResponseText = response.text;
-            setChatHistory(prev => [...prev, { role: 'model', text: agentResponseText }]);
+            setChatHistory(function(prev) { return [...prev, { role: 'model', text: agentResponseText }]; });
             speak(agentResponseText, language);
         } catch (error) {
             console.error("Error sending message:", error);
             const errorMessage = language === 'pt-BR' ? 'Erro ao receber resposta.' : 'Error receiving response.';
-            setChatHistory(prev => [...prev, { role: 'model', text: errorMessage }]);
+            setChatHistory(function(prev) { return [...prev, { role: 'model', text: errorMessage }]; });
         } finally {
             setIsLoading(false);
         }
     };
 
-    const handleClearHistory = () => {
+    const handleClearHistory = function() {
         setChatHistory([]);
         setSimulationStarted(false);
         chatRef.current = null;
@@ -212,13 +198,15 @@ const App = () => {
         window.speechSynthesis.cancel();
     };
 
-    const handleShare = () => {
-        const conversation = chatHistory.map(msg => `${msg.role === 'model' ? texts.agent : texts.mother}:\n${msg.text}`).join('\n\n');
+    const handleShare = function() {
+        const conversation = chatHistory.map(function(msg) {
+            return `${msg.role === 'model' ? texts.agent : texts.mother}:\n${msg.text}`;
+        }).join('\n\n');
         const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(conversation)}`;
         window.open(whatsappUrl, '_blank');
     };
 
-    const handleVoiceInput = () => {
+    const handleVoiceInput = function() {
         if (!SpeechRecognition) {
             alert(texts.voiceNotSupported);
             return;
@@ -232,21 +220,21 @@ const App = () => {
             return;
         }
         recognition.lang = language;
-        recognition.onstart = () => setIsRecording(true);
-        recognition.onend = () => setIsRecording(false);
-        recognition.onerror = (event) => {
+        recognition.onstart = function() { setIsRecording(true); };
+        recognition.onend = function() { setIsRecording(false); };
+        recognition.onerror = function(event) {
             if (event.error === 'not-allowed') alert(texts.micPermissionError);
             console.error('Speech recognition error:', event.error);
             setIsRecording(false);
         };
-        recognition.onresult = (event) => {
-            const transcript = Array.from(event.results).map(r => r[0]).map(r => r.transcript).join('');
+        recognition.onresult = function(event) {
+            const transcript = Array.from(event.results).map(function(r) { return r[0]; }).map(function(r) { return r.transcript; }).join('');
             setUserInput(transcript);
         };
         recognition.start();
     };
 
-    const handleSettingChange = (setter, value) => {
+    const handleSettingChange = function(setter, value) {
         if (simulationStarted && chatHistory.length > 0) {
             if (window.confirm(texts.changeSettingConfirm)) {
                 setter(value);
@@ -264,55 +252,49 @@ const App = () => {
         React.createElement("aside", { className: "control-panel" },
             React.createElement("h1", null, texts.title),
             React.createElement("p", null, texts.description),
-            !ai && React.createElement("div", { className: "control-section api-key-section" },
-                React.createElement("h2", null, texts.apiKeyPrompt),
-                React.createElement("input", {
-                    type: "password",
-                    value: apiKeyInput,
-                    onChange: (e) => setApiKeyInput(e.target.value),
-                    placeholder: texts.apiKeyPlaceholder
-                }),
-                React.createElement("button", { onClick: handleSetApiKey, className: "btn", disabled: !apiKeyInput.trim() || isVerifyingKey },
-                    isVerifyingKey ? texts.verifyingApiKey : texts.setApiKey
-                )
-            ),
-            ai && React.createElement(React.Fragment, null,
+            ai ? React.createElement(React.Fragment, null,
                 React.createElement("div", { className: "control-section" },
                     React.createElement("h2", null, texts.language),
                     React.createElement("div", { className: "segmented-control" },
-                        langOptions.map(lang => React.createElement("button", {
-                            key: lang,
-                            className: `btn-segment ${language === lang ? 'active' : ''}`,
-                            onClick: () => handleSettingChange(setLanguage, lang)
-                        }, lang === 'pt-BR' ? 'Português' : 'English'))
+                        langOptions.map(function(lang) {
+                            return React.createElement("button", {
+                                key: lang,
+                                className: `btn-segment ${language === lang ? 'active' : ''}`,
+                                onClick: function() { handleSettingChange(setLanguage, lang); }
+                            }, lang === 'pt-BR' ? 'Português' : 'English');
+                        })
                     )
                 ),
                 React.createElement("div", { className: "control-section" },
                     React.createElement("h2", null, texts.difficulty),
                     React.createElement("div", { className: "segmented-control" },
-                        difficultyOptions.map(d => React.createElement("button", {
-                            key: d,
-                            className: `btn-segment ${difficulty === d ? 'active' : ''}`,
-                            onClick: () => handleSettingChange(setDifficulty, d)
-                        }, language === 'pt-BR' ? d : difficultyMap[d]))
+                        difficultyOptions.map(function(d) {
+                            return React.createElement("button", {
+                                key: d,
+                                className: `btn-segment ${difficulty === d ? 'active' : ''}`,
+                                onClick: function() { handleSettingChange(setDifficulty, d); }
+                            }, language === 'pt-BR' ? d : difficultyMap[d]);
+                        })
                     )
                 ),
                 React.createElement("div", { className: "control-section" },
                     React.createElement("h2", null, texts.topic),
                     React.createElement("div", { className: "theme-buttons" },
-                        topicKeys.map(topicKey => React.createElement("button", {
-                            key: topicKey,
-                            className: `btn ${selectedTopicKey === topicKey && !customTopic ? 'active' : ''}`,
-                            onClick: () => { setSelectedTopicKey(topicKey); setCustomTopic(''); },
-                            disabled: simulationStarted
-                        }, texts[topicKey]))
+                        topicKeys.map(function(topicKey) {
+                            return React.createElement("button", {
+                                key: topicKey,
+                                className: `btn ${selectedTopicKey === topicKey && !customTopic ? 'active' : ''}`,
+                                onClick: function() { setSelectedTopicKey(topicKey); setCustomTopic(''); },
+                                disabled: simulationStarted
+                            }, texts[topicKey]);
+                        })
                     )
                 ),
                 React.createElement("div", { className: "control-section custom-prompt" },
                     React.createElement("h2", null, texts.customTopic),
                     React.createElement("textarea", {
                         value: customTopic,
-                        onChange: (e) => { setCustomTopic(e.target.value); setSelectedTopicKey(''); },
+                        onChange: function(e) { setCustomTopic(e.target.value); setSelectedTopicKey(''); },
                         placeholder: texts.customPlaceholder,
                         disabled: simulationStarted
                     })
@@ -324,23 +306,23 @@ const App = () => {
                     React.createElement("button", { onClick: handleShare, className: "btn btn-secondary", disabled: chatHistory.length === 0 }, texts.share),
                     React.createElement("button", { onClick: handleClearHistory, className: "btn btn-secondary", disabled: chatHistory.length === 0 }, texts.clear)
                 )
-            )
+            ) : React.createElement("div", null, "Initializing AI...")
         ),
         React.createElement("main", { className: "chat-panel" },
             React.createElement("div", { className: "chat-history", ref: chatHistoryRef },
-                chatHistory.map((msg, index) =>
-                    React.createElement("div", { key: index, className: `chat-message ${msg.role}` },
+                chatHistory.map(function(msg, index) {
+                    return React.createElement("div", { key: index, className: `chat-message ${msg.role}` },
                         React.createElement("div", { className: "message-header" },
                             React.createElement("span", { className: "role" }, msg.role === 'model' ? texts.agent : texts.mother),
-                            msg.role === 'model' && React.createElement("button", { className: "btn icon-btn speak-btn", onClick: () => speak(msg.text, language), title: "Ouvir novamente" },
+                            msg.role === 'model' && React.createElement("button", { className: "btn icon-btn speak-btn", onClick: function() { speak(msg.text, language); }, title: "Ouvir novamente" },
                                 React.createElement("svg", { xmlns: "http://www.w3.org/2000/svg", viewBox: "0 0 24 24" },
                                     React.createElement("path", { d: "M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z" })
                                 )
                             )
                         ),
                         React.createElement("p", null, msg.text)
-                    )
-                ),
+                    );
+                }),
                 isLoading && chatHistory.length > 0 && React.createElement("div", { className: "chat-message model" }, React.createElement("p", null, "..."))
             ),
             React.createElement("div", { className: "chat-input-area" },
@@ -348,7 +330,7 @@ const App = () => {
                     React.createElement("input", {
                         type: "text",
                         value: userInput,
-                        onChange: (e) => setUserInput(e.target.value),
+                        onChange: function(e) { setUserInput(e.target.value); },
                         placeholder: texts.inputPlaceholder,
                         disabled: !simulationStarted || isLoading || !ai
                     }),
@@ -366,10 +348,10 @@ const App = () => {
             )
         )
     );
-};
+}
 
 // --- Render App ---
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', function() {
     const rootElement = document.getElementById('root');
     const root = ReactDOM.createRoot(rootElement);
     root.render(React.createElement(App));

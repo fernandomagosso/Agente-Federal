@@ -1,20 +1,29 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# Rouxinol 763
 
-# Run and deploy your AI Studio app
+Landing page responsiva para apresentação do endereço **Av. Rouxinol, 763**, na Vila Nova Conceição, em São Paulo.
 
-This contains everything you need to run your app locally.
+## Executar localmente
 
-View your app in AI Studio: https://ai.studio/apps/drive/1tmph8lbaIZo08yKsnToqEuCy8v_CY8SX
+Pré-requisito: Node.js 18 ou superior.
 
-## Run Locally
+```bash
+npm install
+npm run dev
+```
 
-**Prerequisites:**  Node.js
+O Vite informará o endereço local de acesso. Para validar a versão de produção:
 
+```bash
+npm run build
+npm run preview
+```
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+## Funcionalidades
+
+- navegação responsiva com menu móvel;
+- apresentação editorial e galeria com visualização ampliada;
+- acesso direto à localização no Google Maps;
+- formulário de interesse com confirmação local;
+- suporte a preferências de redução de movimento.
+
+As imagens são carregadas remotamente do Unsplash e exigem conexão com a internet para exibição.

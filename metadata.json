@@ -1,7 +1,5 @@
 {
-  "name": "Federal Agent Simulation",
-  "description": "An AI-powered simulation for practicing airport security interviews.",
-  "requestFramePermissions": [
-    "microphone"
-  ]
+  "name": "Rouxinol 763",
+  "description": "Landing page do endereço Rouxinol 763, na Vila Nova Conceição.",
+  "requestFramePermissions": []
 }

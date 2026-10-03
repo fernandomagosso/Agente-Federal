@@ -1,358 +1,193 @@
-// --- Imports ---
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useEffect, useState } from 'react';
 import ReactDOM from 'react-dom/client';
-import { GoogleGenAI } from '@google/genai';
 
-// --- API Key ---
-// WARNING: This key is now hardcoded. Do not share this file publicly.
-const API_KEY = 'AIzaSyDK2CkNxQjrHHu5_ZjXNGbsv9qzKJXXnzg';
-
-// --- Speech Recognition Polyfill ---
-const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-
-// --- Constants & Config ---
-const i18n = {
-  'pt-BR': {
-    title: 'Simulador de Abordagem',
-    description: 'Você assume o papel da mãe. O Agente Federal Ernest fará as perguntas. Responda de forma clara e objetiva.',
-    language: 'Idioma',
-    difficulty: 'Nível de Dificuldade',
-    easy: 'Fácil',
-    medium: 'Médio',
-    hard: 'Difícil',
-    topic: 'Iniciar com Tópico',
-    selectTopic: 'Selecione um tópico para iniciar...',
-    reasonForTravel: 'Motivo da Viagem',
-    fathersAuth: 'Autorização do Pai',
-    accommodation: 'Hospedagem e Roteiro',
-    financialResources: 'Recursos Financeiros',
-    tiesToBrazil: 'Vínculos no Brasil',
-    customTopic: 'Ou crie um tópico personalizado:',
-    customPlaceholder: 'Ex: Questionar sobre a passagem de volta...',
-    startSimulation: 'Iniciar Simulação',
-    sendMessage: 'Enviar',
-    inputPlaceholder: 'Digite sua resposta...',
-    agent: 'Agente Ernest',
-    mother: 'Mãe (Você)',
-    share: 'Compartilhar',
-    clear: 'Limpar Histórico',
-    changeSettingConfirm: 'Mudar esta configuração irá reiniciar a simulação atual. Deseja continuar?',
-    micPermissionError: 'Permissão para microfone negada. Por favor, habilite nas configurações do seu navegador.',
-    voiceNotSupported: 'Reconhecimento de voz não é suportado neste navegador.',
+const gallery = [
+  {
+    src: 'https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?auto=format&fit=crop&w=1600&q=85',
+    alt: 'Fachada contemporânea cercada por vegetação',
+    label: 'Arquitetura',
   },
-  'en-US': {
-    title: 'Approach Simulation',
-    description: 'You take on the role of the mother. Federal Agent Ernest will ask the questions. Answer clearly and objectively.',
-    language: 'Language',
-    difficulty: 'Difficulty Level',
-    easy: 'Easy',
-    medium: 'Medium',
-    hard: 'Hard',
-    topic: 'Start with Topic',
-    selectTopic: 'Select a topic to start...',
-    reasonForTravel: 'Reason for Travel',
-    fathersAuth: "Father's Authorization",
-    accommodation: 'Accommodation & Itinerary',
-    financialResources: 'Financial Resources',
-    tiesToBrazil: 'Ties to Brazil',
-    customTopic: 'Or create a custom topic:',
-    customPlaceholder: 'E.g: Question about the return ticket...',
-    startSimulation: 'Start Simulation',
-    sendMessage: 'Send',
-    inputPlaceholder: 'Type your answer...',
-    agent: 'Agent Ernest',
-    mother: 'Mother (You)',
-    share: 'Share',
-    clear: 'Clear History',
-    changeSettingConfirm: 'Changing this setting will restart the current simulation. Do you want to continue?',
-    micPermissionError: 'Microphone permission denied. Please enable it in your browser settings.',
-    voiceNotSupported: 'Voice recognition is not supported in this browser.',
-  }
-};
+  {
+    src: 'https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?auto=format&fit=crop&w=1200&q=85',
+    alt: 'Sala de estar contemporânea e iluminada',
+    label: 'Interiores',
+  },
+  {
+    src: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1200&q=85',
+    alt: 'Área externa com jardim e piscina',
+    label: 'Bem-estar',
+  },
+];
 
-function getSystemInstruction(difficulty, lang) {
-  const instructions = {
-      'Fácil': {
-          'pt-BR': `Você é o Agente Federal Ernest. Seu tom é profissional, mas calmo e educado. Seu objetivo é fazer uma checagem de rotina. Faça perguntas claras e diretas, uma de cada vez. Você está investigando uma mãe viajando sozinha com a filha de 10 anos para a Europa. Comece a conversa com base no tópico inicial fornecido. Analise a resposta da mãe e faça uma pergunta de acompanhamento relevante. Responda APENAS em Português.`,
-          'en-US': `You are Federal Agent Ernest. Your tone is professional, but calm and polite. Your goal is a routine check. Ask clear and direct questions, one at a time. You are investigating a mother traveling alone with her 10-year-old daughter to Europe. Start the conversation based on the initial topic provided. Analyze the mother's response and ask a relevant follow-up question. Respond ONLY in English.`
-      },
-      'Médio': {
-          'pt-BR': `Você é o Agente Federal Ernest. Seu tom é formal, direto e cético. Seu objetivo é verificar a consistência da história. Faça perguntas específicas e detalhadas, uma de cada vez, buscando por qualquer inconsistência. Você está investigando uma mãe viajando sozinha com a filha de 10 anos para a Europa. Comece a conversa com base no tópico inicial fornecido. Analise a resposta da mãe e faça uma pergunta de acompanhamento perspicaz. Responda APENAS em Português.`,
-          'en-US': `You are Federal Agent Ernest. Your tone is formal, direct, and skeptical. Your goal is to verify the consistency of the story. Ask specific and detailed questions, one at a time, looking for any inconsistencies. You are investigating a mother traveling alone with her 10-year-old daughter to Europe. Start the conversation based on the initial topic provided. Analyze the mother's response and ask a sharp follow-up question. Respond ONLY in English.`
-      },
-      'Difícil': {
-          'pt-BR': `Você é o Agente Federal Ernest. Seu tom é intimidador, rápido e implacável. Seu objetivo é aplicar pressão para descobrir a verdade a qualquer custo. Suas perguntas são curtas, incisivas e podem mudar de tópico abruptamente para desestabilizar. Você está investigando uma mãe viajando sozinha com a filha de 10 anos para a Europa. Comece a conversa com base no tópico inicial fornecido. Analise a resposta da mãe e faça uma pergunta de acompanhamento desafiadora. Responda APENAS em Português.`,
-          'en-US': `You are Federal Agent Ernest. Your tone is intimidating, fast-paced, and relentless. Your goal is to apply pressure to uncover the truth at all costs. Your questions are short, incisive, and may change topic abruptly to destabilize. You are investigating a mother traveling alone with her 10-year-old daughter to Europe. Start the conversation based on the initial topic provided. Analyze the mother's response and ask a challenging follow-up question. Respond ONLY in English.`
-      }
-  };
-  return instructions[difficulty][lang];
+function ArrowIcon() {
+  return React.createElement('svg', { viewBox: '0 0 24 24', 'aria-hidden': 'true' },
+    React.createElement('path', { d: 'M5 12h14M13 6l6 6-6 6' }));
 }
 
-const difficultyMap = { 'Fácil': 'Easy', 'Médio': 'Medium', 'Difícil': 'Hard' };
-const topicKeys = ['reasonForTravel', 'fathersAuth', 'accommodation', 'financialResources', 'tiesToBrazil'];
+function MenuIcon({ open }) {
+  return React.createElement('span', { className: `menu-lines ${open ? 'is-open' : ''}`, 'aria-hidden': 'true' },
+    React.createElement('span'), React.createElement('span'));
+}
 
-// --- App Component ---
 function App() {
-    const [ai, setAi] = useState(null);
-    const [chatHistory, setChatHistory] = useState([]);
-    const [userInput, setUserInput] = useState('');
-    const [isLoading, setIsLoading] = useState(false);
-    const [isRecording, setIsRecording] = useState(false);
-    const [language, setLanguage] = useState('pt-BR');
-    const [difficulty, setDifficulty] = useState('Médio');
-    const [simulationStarted, setSimulationStarted] = useState(false);
-    const [selectedTopicKey, setSelectedTopicKey] = useState('');
-    const [customTopic, setCustomTopic] = useState('');
-    const chatRef = useRef(null);
-    const chatHistoryRef = useRef(null);
-    const recognitionRef = useRef(null);
-    const texts = i18n[language];
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [activeImage, setActiveImage] = useState(null);
+  const [sent, setSent] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
 
-    useEffect(function() {
-        // Automatically initialize the AI client with the hardcoded key
-        if (API_KEY) {
-            try {
-                const aiInstance = new GoogleGenAI({ apiKey: API_KEY });
-                setAi(aiInstance);
-            } catch (error) {
-                console.error("Failed to initialize GoogleGenAI:", error);
-            }
-        }
-    }, []);
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 32);
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
 
-    useEffect(function() {
-        if (chatHistoryRef.current) {
-            chatHistoryRef.current.scrollTop = chatHistoryRef.current.scrollHeight;
-        }
-    }, [chatHistory]);
+  useEffect(() => {
+    document.body.style.overflow = menuOpen || activeImage !== null ? 'hidden' : '';
+    return () => { document.body.style.overflow = ''; };
+  }, [menuOpen, activeImage]);
 
-    const speak = function(text, lang) {
-        if ('speechSynthesis' in window) {
-            window.speechSynthesis.cancel();
-            const utterance = new SpeechSynthesisUtterance(text);
-            utterance.lang = lang;
-            window.speechSynthesis.speak(utterance);
-        }
-    };
+  const closeMenu = () => setMenuOpen(false);
+  const submitContact = (event) => {
+    event.preventDefault();
+    setSent(true);
+    event.currentTarget.reset();
+  };
 
-    const handleStartSimulation = async function() {
-        const topic = customTopic.trim() || (selectedTopicKey ? texts[selectedTopicKey] : '');
-        if (!topic || !ai) return;
-
-        setIsLoading(true);
-        setSimulationStarted(true);
-        setChatHistory([]);
-
-        const systemInstruction = getSystemInstruction(difficulty, language);
-        const temp = difficulty === 'Fácil' ? 0.9 : difficulty === 'Médio' ? 0.8 : 0.4;
-        
-        chatRef.current = ai.chats.create({
-            model: 'gemini-2.5-flash',
-            config: { systemInstruction, temperature: temp },
-        });
-
-        try {
-            const response = await chatRef.current.sendMessage({ message: `Inicie a conversa com este tópico: "${topic}"` });
-            const agentResponseText = response.text;
-            setChatHistory([{ role: 'model', text: agentResponseText }]);
-            speak(agentResponseText, language);
-        } catch (error) {
-            console.error("Error starting simulation:", error);
-            const errorMessage = language === 'pt-BR' ? 'Erro ao iniciar a simulação.' : 'Error starting simulation.';
-            setChatHistory([{ role: 'model', text: errorMessage }]);
-            setSimulationStarted(false);
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-    const handleSendMessage = async function(e) {
-        e.preventDefault();
-        if (!userInput.trim() || isLoading || !chatRef.current) return;
-
-        const userMessage = { role: 'user', text: userInput };
-        setChatHistory(function(prev) { return [...prev, userMessage]; });
-        setUserInput('');
-        setIsLoading(true);
-
-        try {
-            const response = await chatRef.current.sendMessage({ message: userInput });
-            const agentResponseText = response.text;
-            setChatHistory(function(prev) { return [...prev, { role: 'model', text: agentResponseText }]; });
-            speak(agentResponseText, language);
-        } catch (error) {
-            console.error("Error sending message:", error);
-            const errorMessage = language === 'pt-BR' ? 'Erro ao receber resposta.' : 'Error receiving response.';
-            setChatHistory(function(prev) { return [...prev, { role: 'model', text: errorMessage }]; });
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-    const handleClearHistory = function() {
-        setChatHistory([]);
-        setSimulationStarted(false);
-        chatRef.current = null;
-        setSelectedTopicKey('');
-        setCustomTopic('');
-        window.speechSynthesis.cancel();
-    };
-
-    const handleShare = function() {
-        const conversation = chatHistory.map(function(msg) {
-            return `${msg.role === 'model' ? texts.agent : texts.mother}:\n${msg.text}`;
-        }).join('\n\n');
-        const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(conversation)}`;
-        window.open(whatsappUrl, '_blank');
-    };
-
-    const handleVoiceInput = function() {
-        if (!SpeechRecognition) {
-            alert(texts.voiceNotSupported);
-            return;
-        }
-        if (!recognitionRef.current) {
-            recognitionRef.current = new SpeechRecognition();
-        }
-        const recognition = recognitionRef.current;
-        if (isRecording) {
-            recognition.stop();
-            return;
-        }
-        recognition.lang = language;
-        recognition.onstart = function() { setIsRecording(true); };
-        recognition.onend = function() { setIsRecording(false); };
-        recognition.onerror = function(event) {
-            if (event.error === 'not-allowed') alert(texts.micPermissionError);
-            console.error('Speech recognition error:', event.error);
-            setIsRecording(false);
-        };
-        recognition.onresult = function(event) {
-            const transcript = Array.from(event.results).map(function(r) { return r[0]; }).map(function(r) { return r.transcript; }).join('');
-            setUserInput(transcript);
-        };
-        recognition.start();
-    };
-
-    const handleSettingChange = function(setter, value) {
-        if (simulationStarted && chatHistory.length > 0) {
-            if (window.confirm(texts.changeSettingConfirm)) {
-                setter(value);
-                handleClearHistory();
-            }
-        } else {
-            setter(value);
-        }
-    };
-
-    const difficultyOptions = ['Fácil', 'Médio', 'Difícil'];
-    const langOptions = ['pt-BR', 'en-US'];
-
-    return React.createElement("div", { className: "app-container" },
-        React.createElement("aside", { className: "control-panel" },
-            React.createElement("h1", null, texts.title),
-            React.createElement("p", null, texts.description),
-            ai ? React.createElement(React.Fragment, null,
-                React.createElement("div", { className: "control-section" },
-                    React.createElement("h2", null, texts.language),
-                    React.createElement("div", { className: "segmented-control" },
-                        langOptions.map(function(lang) {
-                            return React.createElement("button", {
-                                key: lang,
-                                className: `btn-segment ${language === lang ? 'active' : ''}`,
-                                onClick: function() { handleSettingChange(setLanguage, lang); }
-                            }, lang === 'pt-BR' ? 'Português' : 'English');
-                        })
-                    )
-                ),
-                React.createElement("div", { className: "control-section" },
-                    React.createElement("h2", null, texts.difficulty),
-                    React.createElement("div", { className: "segmented-control" },
-                        difficultyOptions.map(function(d) {
-                            return React.createElement("button", {
-                                key: d,
-                                className: `btn-segment ${difficulty === d ? 'active' : ''}`,
-                                onClick: function() { handleSettingChange(setDifficulty, d); }
-                            }, language === 'pt-BR' ? d : difficultyMap[d]);
-                        })
-                    )
-                ),
-                React.createElement("div", { className: "control-section" },
-                    React.createElement("h2", null, texts.topic),
-                    React.createElement("div", { className: "theme-buttons" },
-                        topicKeys.map(function(topicKey) {
-                            return React.createElement("button", {
-                                key: topicKey,
-                                className: `btn ${selectedTopicKey === topicKey && !customTopic ? 'active' : ''}`,
-                                onClick: function() { setSelectedTopicKey(topicKey); setCustomTopic(''); },
-                                disabled: simulationStarted
-                            }, texts[topicKey]);
-                        })
-                    )
-                ),
-                React.createElement("div", { className: "control-section custom-prompt" },
-                    React.createElement("h2", null, texts.customTopic),
-                    React.createElement("textarea", {
-                        value: customTopic,
-                        onChange: function(e) { setCustomTopic(e.target.value); setSelectedTopicKey(''); },
-                        placeholder: texts.customPlaceholder,
-                        disabled: simulationStarted
-                    })
-                ),
-                React.createElement("button", { onClick: handleStartSimulation, className: "btn", disabled: simulationStarted || (!selectedTopicKey && !customTopic.trim()) || isLoading },
-                    isLoading && !chatHistory.length ? (language === 'pt-BR' ? 'Iniciando...' : 'Starting...') : texts.startSimulation
-                ),
-                React.createElement("div", { className: "actions-bar" },
-                    React.createElement("button", { onClick: handleShare, className: "btn btn-secondary", disabled: chatHistory.length === 0 }, texts.share),
-                    React.createElement("button", { onClick: handleClearHistory, className: "btn btn-secondary", disabled: chatHistory.length === 0 }, texts.clear)
-                )
-            ) : React.createElement("div", null, "Initializing AI...")
+  return React.createElement(React.Fragment, null,
+    React.createElement('header', { className: `site-header ${scrolled ? 'is-scrolled' : ''}` },
+      React.createElement('a', { className: 'brand', href: '#inicio', onClick: closeMenu, 'aria-label': 'Rouxinol 763, início' },
+        React.createElement('span', { className: 'brand-mark' }, 'R'),
+        React.createElement('span', { className: 'brand-name' }, 'ROUXINOL', React.createElement('small', null, '763'))
+      ),
+      React.createElement('nav', { className: `main-nav ${menuOpen ? 'is-open' : ''}`, 'aria-label': 'Navegação principal' },
+        [['O projeto', 'projeto'], ['Galeria', 'galeria'], ['Localização', 'localizacao'], ['Contato', 'contato']].map(([label, id]) =>
+          React.createElement('a', { href: `#${id}`, key: id, onClick: closeMenu }, label)
         ),
-        React.createElement("main", { className: "chat-panel" },
-            React.createElement("div", { className: "chat-history", ref: chatHistoryRef },
-                chatHistory.map(function(msg, index) {
-                    return React.createElement("div", { key: index, className: `chat-message ${msg.role}` },
-                        React.createElement("div", { className: "message-header" },
-                            React.createElement("span", { className: "role" }, msg.role === 'model' ? texts.agent : texts.mother),
-                            msg.role === 'model' && React.createElement("button", { className: "btn icon-btn speak-btn", onClick: function() { speak(msg.text, language); }, title: "Ouvir novamente" },
-                                React.createElement("svg", { xmlns: "http://www.w3.org/2000/svg", viewBox: "0 0 24 24" },
-                                    React.createElement("path", { d: "M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z" })
-                                )
-                            )
-                        ),
-                        React.createElement("p", null, msg.text)
-                    );
-                }),
-                isLoading && chatHistory.length > 0 && React.createElement("div", { className: "chat-message model" }, React.createElement("p", null, "..."))
-            ),
-            React.createElement("div", { className: "chat-input-area" },
-                React.createElement("form", { onSubmit: handleSendMessage },
-                    React.createElement("input", {
-                        type: "text",
-                        value: userInput,
-                        onChange: function(e) { setUserInput(e.target.value); },
-                        placeholder: texts.inputPlaceholder,
-                        disabled: !simulationStarted || isLoading || !ai
-                    }),
-                    React.createElement("button", { type: "button", className: `icon-btn ${isRecording ? 'recording' : ''}`, onClick: handleVoiceInput, disabled: !simulationStarted || isLoading || !ai, title: "Gravar voz" },
-                        React.createElement("svg", { xmlns: "http://www.w3.org/2000/svg", viewBox: "0 0 24 24" },
-                            React.createElement("path", { d: "M12 14c1.66 0 2.99-1.34 2.99-3L15 5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.3-3c0 3-2.54 5.1-5.3 5.1S6.7 14 6.7 11H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c3.28-.48 6-3.3 6-6.72h-1.7z" })
-                        )
-                    ),
-                    React.createElement("button", { type: "submit", className: "icon-btn", disabled: !simulationStarted || isLoading || !userInput.trim() || !ai, title: "Enviar mensagem" },
-                        React.createElement("svg", { xmlns: "http://www.w3.org/2000/svg", viewBox: "0 0 24 24" },
-                            React.createElement("path", { d: "M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" })
-                        )
-                    )
-                )
-            )
+        React.createElement('a', { href: '#contato', className: 'nav-cta', onClick: closeMenu }, 'Quero conhecer')
+      ),
+      React.createElement('button', {
+        className: 'menu-button',
+        type: 'button',
+        onClick: () => setMenuOpen(!menuOpen),
+        'aria-expanded': menuOpen,
+        'aria-label': menuOpen ? 'Fechar menu' : 'Abrir menu',
+      }, React.createElement(MenuIcon, { open: menuOpen }))
+    ),
+
+    React.createElement('main', null,
+      React.createElement('section', { className: 'hero', id: 'inicio' },
+        React.createElement('div', { className: 'hero-image', role: 'img', 'aria-label': 'Arquitetura residencial contemporânea' }),
+        React.createElement('div', { className: 'hero-shade' }),
+        React.createElement('div', { className: 'hero-content' },
+          React.createElement('p', { className: 'eyebrow light' }, 'Vila Nova Conceição · São Paulo'),
+          React.createElement('h1', null, 'Seu lugar', React.createElement('br'), 'no mundo.'),
+          React.createElement('p', { className: 'hero-copy' }, 'Um endereço que conecta arquitetura, natureza e o melhor da vida urbana.'),
+          React.createElement('a', { className: 'text-link light-link', href: '#projeto' }, 'Descubra o Rouxinol 763', React.createElement(ArrowIcon))
+        ),
+        React.createElement('a', { className: 'scroll-cue', href: '#projeto', 'aria-label': 'Rolar para conhecer o projeto' },
+          React.createElement('span', null, 'Explore'), React.createElement('i')
         )
-    );
+      ),
+
+      React.createElement('section', { className: 'intro section', id: 'projeto' },
+        React.createElement('div', { className: 'section-number' }, '01'),
+        React.createElement('div', { className: 'intro-heading reveal' },
+          React.createElement('p', { className: 'eyebrow' }, 'Av. Rouxinol, 763'),
+          React.createElement('h2', null, 'Onde a cidade', React.createElement('br'), React.createElement('em', null, 'encontra pausa.'))
+        ),
+        React.createElement('div', { className: 'intro-copy' },
+          React.createElement('p', null, 'Em uma das ruas mais desejadas da Vila Nova Conceição, o Rouxinol 763 nasce para quem valoriza tempo, beleza e uma relação mais leve com a cidade.'),
+          React.createElement('p', null, 'Uma experiência residencial guiada pela atenção aos detalhes e pela conexão com o entorno.'),
+          React.createElement('a', { className: 'text-link', href: '#galeria' }, 'Conheça os espaços', React.createElement(ArrowIcon))
+        )
+      ),
+
+      React.createElement('section', { className: 'statement' },
+        React.createElement('div', { className: 'statement-photo', role: 'img', 'aria-label': 'Detalhe de arquitetura e paisagismo' }),
+        React.createElement('div', { className: 'statement-card' },
+          React.createElement('span', { className: 'quote-mark' }, '“'),
+          React.createElement('blockquote', null, 'Morar bem também é escolher como você quer sentir cada dia.'),
+          React.createElement('p', null, 'Rouxinol 763')
+        )
+      ),
+
+      React.createElement('section', { className: 'gallery-section section', id: 'galeria' },
+        React.createElement('div', { className: 'section-topline' },
+          React.createElement('div', { className: 'section-number' }, '02'),
+          React.createElement('div', null,
+            React.createElement('p', { className: 'eyebrow' }, 'Atmosferas'),
+            React.createElement('h2', null, 'Espaços para', React.createElement('br'), React.createElement('em', null, 'viver o agora.'))
+          ),
+          React.createElement('p', { className: 'section-aside' }, 'Uma seleção visual do conceito que inspira o Rouxinol 763.')
+        ),
+        React.createElement('div', { className: 'gallery-grid' },
+          gallery.map((image, index) => React.createElement('button', {
+            className: `gallery-item gallery-item-${index + 1}`,
+            key: image.src,
+            type: 'button',
+            onClick: () => setActiveImage(index),
+            'aria-label': `Ampliar imagem: ${image.alt}`,
+          },
+            React.createElement('img', { src: image.src, alt: image.alt, loading: index ? 'lazy' : 'eager' }),
+            React.createElement('span', null, `0${index + 1}`, React.createElement('strong', null, image.label))
+          ))
+        )
+      ),
+
+      React.createElement('section', { className: 'location section', id: 'localizacao' },
+        React.createElement('div', { className: 'location-copy' },
+          React.createElement('div', { className: 'section-number' }, '03'),
+          React.createElement('p', { className: 'eyebrow' }, 'Vila Nova Conceição'),
+          React.createElement('h2', null, 'Tudo por perto.', React.createElement('br'), React.createElement('em', null, 'Você no centro.')),
+          React.createElement('p', null, 'Entre ruas arborizadas e a energia de São Paulo, um endereço conectado ao ritmo do bairro e às possibilidades da cidade.'),
+          React.createElement('a', { className: 'text-link', href: 'https://www.google.com/maps/search/?api=1&query=Av.+Rouxinol,+763,+São+Paulo', target: '_blank', rel: 'noreferrer' }, 'Abrir no mapa', React.createElement(ArrowIcon))
+        ),
+        React.createElement('div', { className: 'map-art', 'aria-label': 'Mapa ilustrado da região da Avenida Rouxinol' },
+          React.createElement('span', { className: 'road road-one' }),
+          React.createElement('span', { className: 'road road-two' }),
+          React.createElement('span', { className: 'road road-three' }),
+          React.createElement('span', { className: 'road road-four' }),
+          React.createElement('span', { className: 'park' }),
+          React.createElement('span', { className: 'map-label label-park' }, 'Parque Ibirapuera'),
+          React.createElement('span', { className: 'map-label label-avenue' }, 'Av. Rouxinol'),
+          React.createElement('span', { className: 'map-pin' }, React.createElement('i'), React.createElement('b', null, '763'))
+        )
+      ),
+
+      React.createElement('section', { className: 'contact section', id: 'contato' },
+        React.createElement('div', { className: 'contact-heading' },
+          React.createElement('p', { className: 'eyebrow light' }, 'Fale com a gente'),
+          React.createElement('h2', null, 'Seu próximo', React.createElement('br'), React.createElement('em', null, 'capítulo começa aqui.')),
+          React.createElement('p', null, 'Cadastre-se para receber mais informações sobre o Rouxinol 763.')
+        ),
+        sent ? React.createElement('div', { className: 'success-message', role: 'status' },
+          React.createElement('span', null, '✓'), React.createElement('h3', null, 'Mensagem recebida.'),
+          React.createElement('p', null, 'Obrigado pelo interesse. Entraremos em contato em breve.'),
+          React.createElement('button', { type: 'button', onClick: () => setSent(false) }, 'Enviar outro contato')
+        ) : React.createElement('form', { className: 'contact-form', onSubmit: submitContact },
+          React.createElement('label', null, React.createElement('span', null, 'Nome'), React.createElement('input', { name: 'name', type: 'text', autoComplete: 'name', required: true, placeholder: 'Como podemos chamar você?' })),
+          React.createElement('div', { className: 'form-row' },
+            React.createElement('label', null, React.createElement('span', null, 'E-mail'), React.createElement('input', { name: 'email', type: 'email', autoComplete: 'email', required: true, placeholder: 'seu@email.com' })),
+            React.createElement('label', null, React.createElement('span', null, 'Telefone'), React.createElement('input', { name: 'phone', type: 'tel', autoComplete: 'tel', required: true, placeholder: '(11) 99999-9999' }))
+          ),
+          React.createElement('label', { className: 'consent' }, React.createElement('input', { type: 'checkbox', required: true }), React.createElement('span', null, 'Concordo em receber informações sobre este projeto.')),
+          React.createElement('button', { className: 'submit-button', type: 'submit' }, 'Quero saber mais', React.createElement(ArrowIcon))
+        )
+      )
+    ),
+
+    React.createElement('footer', null,
+      React.createElement('a', { className: 'brand footer-brand', href: '#inicio' }, React.createElement('span', { className: 'brand-mark' }, 'R'), React.createElement('span', { className: 'brand-name' }, 'ROUXINOL', React.createElement('small', null, '763'))),
+      React.createElement('p', null, 'Av. Rouxinol, 763 · Vila Nova Conceição · São Paulo'),
+      React.createElement('a', { href: '#inicio' }, 'Voltar ao topo ↑')
+    ),
+
+    activeImage !== null && React.createElement('div', { className: 'lightbox', role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Imagem ampliada', onClick: () => setActiveImage(null) },
+      React.createElement('button', { type: 'button', onClick: () => setActiveImage(null), 'aria-label': 'Fechar imagem' }, '×'),
+      React.createElement('img', { src: gallery[activeImage].src, alt: gallery[activeImage].alt, onClick: (event) => event.stopPropagation() }),
+      React.createElement('p', null, gallery[activeImage].label)
+    )
+  );
 }
 
-// --- Render App ---
-document.addEventListener('DOMContentLoaded', function() {
-    const rootElement = document.getElementById('root');
-    const root = ReactDOM.createRoot(rootElement);
-    root.render(React.createElement(App));
-});
+ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(App));
